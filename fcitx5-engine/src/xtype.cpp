@@ -26,6 +26,7 @@
 #include "config_loader.h"
 #include "path_utils.h"
 #include "prompt_builder.h"
+#include "utf8_util.h"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,14 @@ static void dbg(const char *fmt, ...) {
     va_list ap; va_start(ap, fmt); std::vfprintf(f, fmt, ap); va_end(ap);
     std::fputc('\n', f); std::fflush(f);
 }
+// UTF-8 text a key types on its own, or "" for non-text keys (arrows, F-keys,
+// modifiers, dead keys) and control characters.
+static std::string typedText(fcitx::KeySym sym) {
+    const uint32_t uc = fcitx::Key::keySymToUnicode(sym);
+    if (uc < 0x20 || uc == 0x7f) return {};
+    return fcitx::Key::keySymToUTF8(sym);
+}
+
 static void log_warn(const char *msg) {
     std::fprintf(stderr, "[xtype] WARNING: %s\n", msg);
     dbg("WARN: %s", msg);
@@ -246,6 +255,16 @@ void XTypeEngine::keyEvent(const fcitx::InputMethodEntry &,
     const bool hasSuggestion = _ctx.hasSuggestion();
     const auto sym = event.key().sym();
 
+    // These keys cancel a pending dead-key / Compose sequence in the app; keep
+    // our mirror of that state (see the text branch below) in step. A cancelled
+    // sequence leaves the text untouched, so Backspace deletes nothing.
+    if (_instance->isComposing(ic) &&
+        (sym == FcitxKey_Escape || sym == FcitxKey_Return ||
+         sym == FcitxKey_KP_Enter || sym == FcitxKey_BackSpace)) {
+        _instance->resetCompose(ic);
+        if (sym == FcitxKey_BackSpace) return;
+    }
+
     // Tab — accept next word; Shift+Tab / ISO_Left_Tab — accept entire suggestion.
     if (sym == FcitxKey_Tab || sym == FcitxKey_ISO_Left_Tab) {
         if (!hasSuggestion) return;
@@ -299,8 +318,7 @@ void XTypeEngine::keyEvent(const fcitx::InputMethodEntry &,
             event.filterAndAccept();
         } else {
             _ctx.backspace();
-            if (!_userTypedSinceLastTerminator.empty())
-                _userTypedSinceLastTerminator.pop_back();
+            utf8_util::popBack(_userTypedSinceLastTerminator);
             _debounceTimer.reset();
         }
         return;
@@ -323,15 +341,36 @@ void XTypeEngine::keyEvent(const fcitx::InputMethodEntry &,
         return;
     }
 
-    // Printable ASCII (space through ~). Pass key through to app, update buffer,
-    // arm debounce timer for inference.
-    if (sym >= FcitxKey_space && sym <= FcitxKey_asciitilde) {
-        dbg("key '%c' prog=%s ctx_len=%zu", static_cast<char>(sym),
+    // Text keys. The key always passes through and the app inserts the text
+    // itself — including dead-key / Compose sequences, which the app composes
+    // on its side (US-International: ' then space -> ', ' then a -> á). Feed
+    // the same keys through Fcitx5's XCompose state so the buffer records the
+    // text the app shows rather than raw keysyms.
+    std::string text;
+    if (auto composed = _instance->processComposeString(ic, sym)) {
+        if (!composed->empty()) {
+            text = std::move(*composed);            // sequence completed
+        } else if (_instance->isComposing(ic)) {
+            // Mid-sequence (e.g. a dead key): nothing inserted yet. Drop the
+            // ghost text so it can't sit on top of the app's compose preedit.
+            invalidate();
+            updatePreedit(ic);
+            _debounceTimer.reset();
+            return;
+        } else {
+            text = typedText(sym);                  // not part of a sequence
+        }
+    } else {
+        // Sequence cancelled (no rule for dead key + this key). Toolkits differ
+        // on what they insert; at least the key itself is the common case.
+        text = typedText(sym);
+    }
+    if (!text.empty()) {
+        dbg("key '%s' prog=%s ctx_len=%zu", text.c_str(),
             ic->program().c_str(), _ctx.contextText().size());
         invalidate();
         updatePreedit(ic);
-        const char ch = static_cast<char>(sym);
-        _ctx.appendChar(ch);
+        _ctx.appendText(text);
 
         // User-typed-only buffer for corpus harvest (excludes AI accept paths).
         // Rolling strategy: on overflow, erase through the next sentence terminator
@@ -344,8 +383,8 @@ void XTypeEngine::keyEvent(const fcitx::InputMethodEntry &,
             else
                 buf.clear();
         }
-        _userTypedSinceLastTerminator.push_back(ch);
-        if (ch == '.' || ch == '!' || ch == '?')
+        _userTypedSinceLastTerminator += text;
+        if (text == "." || text == "!" || text == "?")
             harvestSentence(ic->program());
 
         _debounceTimer.reset();
@@ -379,8 +418,7 @@ void XTypeEngine::requestInference(
     if (static_cast<int>(ctx.size()) < _cfg.inference.min_context_chars)
         return;
     if (static_cast<int>(ctx.size()) > _cfg.inference.context_window)
-        ctx = ctx.substr(ctx.size() -
-                         static_cast<size_t>(_cfg.inference.context_window));
+        ctx = utf8_util::tail(ctx, static_cast<size_t>(_cfg.inference.context_window));
 
     ++_gen;
     ++_metrics.suggestions_generated;
@@ -453,8 +491,7 @@ void XTypeEngine::requestInference(
                     if (_ctx.hasSuggestion()) {
                         RecentEvent ev;
                         const std::string ctxText = _ctx.contextText();
-                        ev.typed      = ctxText.substr(
-                                           static_cast<size_t>(std::max(0, (int)ctxText.size() - 40)));
+                        ev.typed      = utf8_util::tail(ctxText, 40);
                         ev.ghost      = _ctx.suggestion() ? *_ctx.suggestion() : "";
                         ev.app        = icPtr->program();
                         ev.accepted   = false;

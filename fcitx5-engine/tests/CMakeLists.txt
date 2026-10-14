@@ -54,6 +54,13 @@ target_link_libraries(test_phrase_blocklist PRIVATE
 )
 catch_discover_tests(test_phrase_blocklist)
 
+add_executable(test_utf8_util test_utf8_util.cpp)
+target_include_directories(test_utf8_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
+target_link_libraries(test_utf8_util PRIVATE
+    Catch2::Catch2WithMain
+)
+catch_discover_tests(test_utf8_util)
+
 add_executable(test_xtype_helpers test_xtype_helpers.cpp)
 target_link_libraries(test_xtype_helpers PRIVATE
     Catch2::Catch2WithMain

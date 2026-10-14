@@ -1,11 +1,17 @@
 #include "context_buffer.h"
 
+#include "utf8_util.h"
+
 // ── Private ───────────────────────────────────────────────────────────────────
 
 void ContextBuffer::push(char ch) {
-    if (_buf.size() >= MAX_CHARS)
-        _buf.pop_front();
     _buf.push_back(ch);
+    if (_buf.size() > MAX_CHARS) {
+        _buf.pop_front();
+        // Never leave the tail bytes of a multi-byte character at the front.
+        while (!_buf.empty() && utf8_util::isContinuation(_buf.front()))
+            _buf.pop_front();
+    }
 }
 
 // ── Queries ───────────────────────────────────────────────────────────────────
@@ -29,11 +35,20 @@ void ContextBuffer::appendChar(char ch) {
     push(ch);
 }
 
+void ContextBuffer::appendText(std::string_view utf8) {
+    dismiss();
+    for (char ch : utf8)
+        push(ch);
+}
+
 void ContextBuffer::backspace() {
     if (_suggestion) {
         dismiss();
-    } else if (!_buf.empty()) {
-        _buf.pop_back();
+    } else {
+        while (!_buf.empty() && utf8_util::isContinuation(_buf.back()))
+            _buf.pop_back();
+        if (!_buf.empty())
+            _buf.pop_back();
     }
 }
 

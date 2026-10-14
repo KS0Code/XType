@@ -206,6 +206,26 @@ TEST_CASE("serialize/deserialize round-trip preserves all fields", "[style][json
     fs::remove_all(d);
 }
 
+TEST_CASE("serialize/deserialize round-trip preserves UTF-8 text", "[style][json][utf8]") {
+    auto d = uniqueDir("utf8");
+    auto cp = d / "corpus.txt";
+    writeCorpus(cp, {
+        "não sei se a configuração está certa agora",
+        "você já viu a nova versão do aplicativo",
+        "I'm sure it works with “quotes” and ç too",
+    });
+    StyleProfile a;
+    a.loadFromCorpus(cp.string(), 7);
+    REQUIRE_FALSE(a.exemplars().empty());
+
+    auto jp = d / "style.json";
+    REQUIRE(a.serialize(jp.string()));
+    StyleProfile b = StyleProfile::deserialize(jp.string());
+    REQUIRE(b.exemplars()     == a.exemplars());
+    REQUIRE(b.commonOpeners() == a.commonOpeners());
+    fs::remove_all(d);
+}
+
 TEST_CASE("corrupt JSON deserialize is safe", "[style][json]") {
     auto d = uniqueDir("corrupt");
     auto jp = d / "style.json";

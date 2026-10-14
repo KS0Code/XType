@@ -273,3 +273,40 @@ TEST_CASE("reset allows fresh use", "[reset]") {
     REQUIRE(cb.contextText() == "x");
     REQUIRE_FALSE(cb.hasSuggestion());
 }
+
+// ── UTF-8 ─────────────────────────────────────────────────────────────────────
+
+TEST_CASE("appendText stores multi-byte characters", "[utf8]") {
+    ContextBuffer cb;
+    cb.appendText("não");
+    cb.appendText("'");
+    REQUIRE(cb.contextText() == "não'");
+}
+
+TEST_CASE("appendText dismisses active suggestion", "[utf8]") {
+    ContextBuffer cb;
+    cb.setSuggestion("hello");
+    cb.appendText("ç");
+    REQUIRE_FALSE(cb.hasSuggestion());
+}
+
+TEST_CASE("backspace removes a whole multi-byte character", "[utf8][backspace]") {
+    ContextBuffer cb;
+    cb.appendText("café");
+    cb.backspace();
+    REQUIRE(cb.contextText() == "caf");
+    cb.appendText("€");
+    cb.backspace();
+    REQUIRE(cb.contextText() == "caf");
+}
+
+TEST_CASE("rolling window never starts with a partial character", "[utf8][window]") {
+    ContextBuffer cb;
+    cb.appendChar('x');                       // shifts the 2-byte chars off even offsets
+    for (int i = 0; i < 400; ++i) cb.appendText("ã");
+    const std::string t = cb.contextText();
+    REQUIRE(t.size() <= 500);
+    REQUIRE(t.size() >= 499);
+    REQUIRE((static_cast<unsigned char>(t.front()) & 0xC0) != 0x80);
+    REQUIRE(t.substr(0, 2) == "ã");
+}
