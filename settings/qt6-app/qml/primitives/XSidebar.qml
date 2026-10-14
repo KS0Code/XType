@@ -112,6 +112,7 @@ Item {
             width: parent.width
             spacing: 4
             Text {
+                id: modelCaption
                 text: "Model"
                 font.family: Theme.sansFamily; font.pixelSize: 10
                 font.capitalization: Font.AllUppercase
@@ -119,11 +120,13 @@ Item {
                 renderType: Text.NativeRendering
                 anchors.verticalCenter: parent.verticalCenter
             }
-            Item { width: parent.width - modelLabel.implicitWidth - modelPill.implicitWidth - 8; height: 1 }
+            Item { width: Math.max(0, parent.width - modelCaption.implicitWidth - modelPill.width - 8); height: 1 }
             Rectangle {
                 id: modelPill
                 radius: 999
-                implicitWidth: modelLabel.implicitWidth + 14
+                // Long Ollama tags (e.g. hf.co/…:Q4_K_M) elide instead of overflowing the sidebar.
+                // At max width the spacer is 0 px and Row skips it, leaving one 4 px gap.
+                width: Math.min(modelLabel.implicitWidth + 14, parent.width - modelCaption.implicitWidth - 4)
                 implicitHeight: modelLabel.implicitHeight + 4
                 color: "transparent"
                 border.color: Qt.rgba(0.655, 0.545, 0.980, 0.18)
@@ -131,7 +134,9 @@ Item {
                 Text {
                     id: modelLabel
                     anchors.centerIn: parent
-                    text: "Qwen3-1.7B"
+                    width: Math.min(implicitWidth, modelPill.width - 14)
+                    elide: Text.ElideRight
+                    text: Config.model
                     font.family: Theme.monoFamily; font.pixelSize: 10
                     color: Theme.purpleSoft
                     renderType: Text.NativeRendering
