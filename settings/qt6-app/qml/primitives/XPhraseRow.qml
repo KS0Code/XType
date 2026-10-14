@@ -55,5 +55,6 @@ Item {
         id: rowMa
         anchors.fill: parent
         hoverEnabled: true
+        acceptedButtons: Qt.NoButton   // hover only; let clicks reach the × button
     }
 }
