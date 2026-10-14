@@ -29,11 +29,14 @@ Item {
                 width: parent.width
                 spacing: 12
 
+                // Accept rate and time saved come from the engine's in-memory
+                // counters (metrics.json), which reset when fcitx5 restarts —
+                // hence "this session" and no per-day bars for those two.
                 Repeater {
                     model: [
-                        { label: "Words learned",    value: CorpusStats.words.toLocaleString(),   bars: [20, 30, 25, 40, 38, 50, CorpusStats.words > 0 ? 100 : 0] },
-                        { label: "Accept rate · 7d", value: "0%",  bars: [0, 0, 0, 0, 0, 0, 0] },
-                        { label: "Time saved · 7d",  value: "0 s", bars: [0, 0, 0, 0, 0, 0, 0] },
+                        { label: "Words learned",              value: CorpusStats.words.toLocaleString(), bars: CorpusStats.wordsPerDay },
+                        { label: "Accept rate · this session", value: Math.round(Engine.acceptRate * 100) + "%", bars: [] },
+                        { label: "Time saved · this session",  value: root.formatDuration(Engine.secondsSaved), bars: [] },
                     ]
                     delegate: Rectangle {
                         required property var modelData
@@ -63,6 +66,7 @@ Item {
                                 }
                                 Item { width: 6 }
                                 XBars {
+                                    opacity: modelData.bars.length > 0 ? 1 : 0   // keep the slot so labels stay aligned
                                     values: modelData.bars
                                     width: 56; height: 24
                                     anchors.verticalCenter: parent.verticalCenter
@@ -307,6 +311,15 @@ Item {
         }
     }
 
+    // Time saved is an estimate: accepted characters at an assumed typing
+    // speed (EngineProbe::kCharsPerSecond).
+    function formatDuration(secs) {
+        const s = Math.round(secs)
+        if (s < 60)   return s + " s"
+        if (s < 3600) return Math.round(s / 60) + " min"
+        return (s / 3600).toFixed(1) + " h"
+    }
+
     function exportProfile() {
         const src = Qt.resolvedUrl("file://" + Qt.platform.os)  // placeholder
         // In a real app: QFileDialog exposed via invokable; for now show toast
@@ -325,13 +338,14 @@ Item {
 
         Rectangle {
             anchors.centerIn: parent
-            width: 320; height: 160
+            width: 320; height: confirmCol.implicitHeight + 40
             radius: Theme.radius.card
             color: Qt.rgba(0.08, 0.06, 0.13, 0.97)
             border.color: Theme.ink12; border.width: 1
 
             Column {
-                anchors { fill: parent; margins: 20 }
+                id: confirmCol
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
                 spacing: 16
 
                 Text {
@@ -342,7 +356,7 @@ Item {
                 }
                 Text {
                     width: parent.width
-                    text: "This removes all learned text. A backup is saved automatically."
+                    text: "This permanently deletes everything XType learned from your typing. The engine stops using it within 5 minutes."
                     font.family: Theme.sansFamily; font.pixelSize: 12
                     color: Theme.ink65; wrapMode: Text.WordWrap
                     renderType: Text.NativeRendering
@@ -355,9 +369,9 @@ Item {
                         variant: "primary"
                         onClicked: {
                             resetConfirm.visible = false
-                            // xtype-corpus wipe --yes is destructive — run and refresh stats
-                            Qt.openUrlExternally("xtype-corpus://wipe")  // no-op placeholder
-                            CorpusStats.refresh()
+                            const removed = CorpusStats.wipe()
+                            StyleProfile.refresh()
+                            wipeText.text = removed < 0 ? "Could not delete some corpus files" : "Corpus wiped"
                             wipeToast.show()
                         }
                     }

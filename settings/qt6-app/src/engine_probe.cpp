@@ -3,8 +3,9 @@
 #include <QDir>
 #include <QDebug>
 #include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QProcessEnvironment>
-#include <QRegularExpression>
 
 #include <ctime>
 #include <unistd.h>
@@ -170,16 +171,30 @@ void EngineProbe::poll() {
 
     QFile mf(QDir::homePath() + "/.local/share/xtype/metrics.json");
     if (mf.open(QIODevice::ReadOnly)) {
-        QByteArray data = mf.readAll();
+        const auto m = parseMetrics(mf.readAll());
         mf.close();
-        QRegularExpression re(R"("latency_p50_ms"\s*:\s*(\d+))");
-        auto m = re.match(QString::fromUtf8(data));
-        if (m.hasMatch()) {
-            int p50 = m.captured(1).toInt();
-            if (p50 != _latencyP50) {
-                _latencyP50 = p50;
-                emit latencyP50Changed();
-            }
+        if (!m) return;
+        if (m->latencyP50 != _latencyP50) {
+            _latencyP50 = m->latencyP50;
+            emit latencyP50Changed();
+        }
+        if (m->generated != _generated || m->accepted != _accepted
+            || m->charsAccepted != _charsAccepted) {
+            _generated     = m->generated;
+            _accepted      = m->accepted;
+            _charsAccepted = m->charsAccepted;
+            emit metricsChanged();
         }
     }
+}
+
+std::optional<EngineProbe::Metrics> EngineProbe::parseMetrics(const QByteArray &json) {
+    const QJsonObject obj = QJsonDocument::fromJson(json).object();
+    if (obj.isEmpty()) return std::nullopt;
+    Metrics m;
+    m.latencyP50    = obj.value("latency_p50_ms").toInt();
+    m.generated     = obj.value("suggestions_generated").toInteger();
+    m.accepted      = obj.value("suggestions_accepted").toInteger();
+    m.charsAccepted = obj.value("chars_accepted").toInteger();
+    return m;
 }
