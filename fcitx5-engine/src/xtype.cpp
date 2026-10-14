@@ -288,6 +288,17 @@ void XTypeEngine::keyEvent(const fcitx::InputMethodEntry &,
         if (hasSuggestion) { invalidate(); updatePreedit(ic); }
         if (_corpus && !_userTypedSinceLastTerminator.empty())
             harvestSentence(ic->program());
+        // Drop any pending debounce / in-flight request: its ghost text was
+        // for the line just ended and must not land on the next one.
+        resetInferenceOnly();
+        // Plain Enter submits chat and single-line fields, which then clear
+        // themselves — without a reset the next message is continued from
+        // the tail of the previous one. Shift+Enter is a line break inside
+        // the same text, so keep the context and record the newline.
+        if (states.test(fcitx::KeyState::Shift))
+            _ctx.appendChar('\n');
+        else
+            _ctx.reset();
         return;
     }
 
