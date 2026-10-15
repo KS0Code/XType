@@ -34,23 +34,63 @@ Item {
 
                     XSection { title: "Per-app settings"; num: "01"; width: parent.width }
 
+                    // Apps you've typed in (most recent first) plus apps already
+                    // configured. Keys are Fcitx5 program names, as in [apps."<name>"].
                     Repeater {
-                        model: AppsKnown.knownApps()
+                        id: appRepeater
+                        model: AppsKnown.appList(Config.apps, AppsKnown.seenApps)
                         delegate: XAppRow {
                             required property var modelData
                             appLabel: modelData.label
-                            appSub: modelData.canonical
-                            iconCls: modelData.iconCls
-                            selected: root.selectedId === modelData.id
+                            appSub: modelData.name
+                            iconName: modelData.iconName
+                            selected: root.selectedId === modelData.name
                             width: parent ? parent.width : 0
-                            onClicked: root.selectedId = modelData.id
+                            onClicked: root.selectedId = modelData.name
 
                             XToggle {
                                 on: {
-                                    const entry = Config.apps[modelData.canonical]
+                                    const entry = Config.apps[modelData.name]
                                     return entry ? (entry.enabled !== undefined ? entry.enabled : true) : true
                                 }
-                                onToggled: (v) => Config.setApp(modelData.canonical, "enabled", v)
+                                onToggled: (v) => Config.setApp(modelData.name, "enabled", v)
+                            }
+                        }
+                    }
+
+                    Text {
+                        visible: appRepeater.count === 0
+                        width: parent.width
+                        text: "No apps yet. Apps appear here after you type in them with XType on, or add one below."
+                        wrapMode: Text.WordWrap
+                        font.family: Theme.sansFamily; font.pixelSize: 13
+                        color: Theme.ink45
+                        renderType: Text.NativeRendering
+                    }
+
+                    // Add an app by its program name (as shown under each app above,
+                    // or in XType's log), e.g. one not typed in yet.
+                    Row {
+                        width: parent.width
+                        spacing: 8
+                        topPadding: 6
+
+                        XInput {
+                            id: addField
+                            width: parent.width - addButton.width - 8
+                            placeholderText: "Add app by program name, e.g. org.kde.kate"
+                            onAccepted: addButton.add()
+                        }
+                        XButton {
+                            id: addButton
+                            label: "Add"
+                            onClicked: add()
+                            function add() {
+                                const name = addField.text.trim()
+                                if (name === "") return
+                                if (!Config.apps[name]) Config.setApp(name, "enabled", true)
+                                root.selectedId = name
+                                addField.text = ""
                             }
                         }
                     }
@@ -81,7 +121,7 @@ Item {
                         // Eyebrow
                         Text {
                             text: root.selectedId !== ""
-                                  ? "Configuring  ·  " + AppsKnown.labelForCanonical(AppsKnown.canonicalForId(root.selectedId))
+                                  ? "Configuring  ·  " + AppsKnown.labelFor(root.selectedId)
                                   : ""
                             font.family: Theme.monoFamily; font.pixelSize: 11
                             font.capitalization: Font.AllUppercase; font.letterSpacing: 1.2
@@ -97,13 +137,12 @@ Item {
                             XToggle {
                                 on: {
                                     if (root.selectedId === "") return true
-                                    const c = AppsKnown.canonicalForId(root.selectedId)
-                                    const entry = Config.apps[c]
+                                    const entry = Config.apps[root.selectedId]
                                     return entry ? (entry.enabled !== undefined ? entry.enabled : true) : true
                                 }
                                 onToggled: (v) => {
                                     if (root.selectedId !== "")
-                                        Config.setApp(AppsKnown.canonicalForId(root.selectedId), "enabled", v)
+                                        Config.setApp(root.selectedId, "enabled", v)
                                 }
                             }
                         }
@@ -117,13 +156,13 @@ Item {
                                 model: ["Default", "Code-aware", "Email tone", "Casual", "Off"]
                                 currentIndex: {
                                     if (root.selectedId === "") return 0
-                                    const entry = Config.apps[AppsKnown.canonicalForId(root.selectedId)]
+                                    const entry = Config.apps[root.selectedId]
                                     const m = entry ? entry.mode || "Default" : "Default"
                                     return Math.max(0, ["Default","Code-aware","Email tone","Casual","Off"].indexOf(m))
                                 }
                                 onActivated: (i) => {
                                     if (root.selectedId === "") return
-                                    Config.setApp(AppsKnown.canonicalForId(root.selectedId), "mode", model[i])
+                                    Config.setApp(root.selectedId, "mode", model[i])
                                 }
                                 implicitWidth: 160; implicitHeight: 32
                                 font.family: Theme.sansFamily; font.pixelSize: 12
@@ -152,14 +191,30 @@ Item {
                                 min: 4; max: 48; step: 1
                                 value: {
                                     if (root.selectedId === "") return Config.numPredict
-                                    const entry = Config.apps[AppsKnown.canonicalForId(root.selectedId)]
+                                    const entry = Config.apps[root.selectedId]
                                     return entry && entry.num_predict ? entry.num_predict : Config.numPredict
                                 }
                                 width: 160
                                 onCommitted: (v) => {
                                     if (root.selectedId !== "")
-                                        Config.setApp(AppsKnown.canonicalForId(root.selectedId), "num_predict", v)
+                                        Config.setApp(root.selectedId, "num_predict", v)
                                 }
+                            }
+                        }
+
+                        // Drops this app's [apps."<name>"] section. An app added by
+                        // hand and never typed in then leaves the list.
+                        XButton {
+                            visible: root.selectedId !== "" && Config.apps[root.selectedId] !== undefined
+                            label: "Reset to defaults"
+                            variant: "ghost"
+                            onClicked: {
+                                const id = root.selectedId
+                                const m = Object.assign({}, Config.apps)
+                                delete m[id]
+                                Config.apps = m
+                                if (!AppsKnown.seenApps.some(a => a.name === id))
+                                    root.selectedId = ""
                             }
                         }
                     }

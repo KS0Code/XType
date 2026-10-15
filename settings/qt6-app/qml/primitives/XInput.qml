@@ -9,6 +9,7 @@ Item {
     property alias maximumLength: tf.maximumLength
     property bool comingSoon: false
     signal editingFinished()
+    signal accepted()
 
     implicitWidth: 240
     implicitHeight: 38
@@ -27,6 +28,7 @@ Item {
     Connections {
         target: tf
         function onEditingFinished() { root.editingFinished() }
+        function onAccepted() { root.accepted() }
     }
 
     TextField {

@@ -149,17 +149,18 @@ Item {
                     height: parent.height - 60
                     clip: true
                     model: {
-                        const all = AppsKnown.knownApps()
-                        return all.filter(a => Config.blocklistApps.indexOf(a.canonical) < 0)
+                        const all = AppsKnown.appList(Config.apps, AppsKnown.seenApps)
+                        return all.filter(a => Config.blocklistApps.indexOf(a.name) < 0)
                     }
                     spacing: 4
                     delegate: XAppRow {
                         required property var modelData
                         appLabel: modelData.label
-                        iconCls: modelData.iconCls
+                        appSub: modelData.name
+                        iconName: modelData.iconName
                         width: parent ? parent.width : 0
                         onClicked: {
-                            Config.blocklistApps = Config.blocklistApps.concat([modelData.canonical])
+                            Config.blocklistApps = Config.blocklistApps.concat([modelData.name])
                             appPickerOverlay.visible = false
                         }
                     }

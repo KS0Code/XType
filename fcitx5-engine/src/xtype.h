@@ -23,6 +23,7 @@
 #include "inference_client.h"
 #include "phrase_blocklist.h"
 #include "recent_events.h"
+#include "seen_apps.h"
 #include "style_profile.h"
 
 class XTypeEngine : public fcitx::InputMethodEngineV2 {
@@ -75,6 +76,8 @@ private:
     std::unique_ptr<fcitx::EventSourceTime>  _debounceTimer;
     uint64_t                                 _gen{0};
     std::string                              _lastProg;
+    SeenApps                                 _seenApps;        // for the settings app's Per-app page
+    std::string                              _seenAppsPath;
 
     // Personalization state (Session 17). Populated only when learning enabled.
     std::unique_ptr<StyleProfile>            _profile;          // main-thread only

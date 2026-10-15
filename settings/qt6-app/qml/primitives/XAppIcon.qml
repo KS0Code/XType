@@ -4,9 +4,15 @@ import XType.Settings 1.0
 Rectangle {
     id: root
     property string cls: ""
+    // Theme icon name or path from the app's .desktop file; shown when it resolves.
+    property string iconName: ""
+    // Letter shown on the badge when there is no cls and no icon.
+    property string fallbackLetter: ""
 
     width: 32; height: 32; radius: 7
-    border.width: 1; border.color: cls === "" ? Theme.ink12 : "transparent"
+    readonly property bool _hasIcon: themeIcon.status === Image.Ready
+    border.width: 1; border.color: cls === "" && !_hasIcon ? Theme.ink12 : "transparent"
+    color: "transparent"
 
     readonly property color _g0: {
         switch (cls) {
@@ -31,15 +37,30 @@ Rectangle {
         }
     }
 
-    gradient: Gradient {
+    gradient: _hasIcon ? null : badgeGradient
+
+    Gradient {
+        id: badgeGradient
         orientation: Gradient.Horizontal
         GradientStop { position: 0.0; color: root._g0 }
         GradientStop { position: 1.0; color: root._g1 }
     }
 
+    Image {
+        id: themeIcon
+        anchors.fill: parent
+        source: root.iconName !== "" ? "image://appicon/" + root.iconName : ""
+        sourceSize: Qt.size(64, 64)
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+        visible: root._hasIcon
+    }
+
     Text {
         anchors.centerIn: parent
-        text: root.cls !== "" ? root.cls.slice(0, 1).toUpperCase() : "?"
+        visible: !root._hasIcon
+        text: root.cls !== "" ? root.cls.slice(0, 1).toUpperCase()
+            : root.fallbackLetter !== "" ? root.fallbackLetter.slice(0, 1).toUpperCase() : "?"
         font.family: Theme.sansFamily; font.pixelSize: 14; font.weight: Font.DemiBold
         color: root.cls !== "" ? "white" : Theme.ink65
         renderType: Text.NativeRendering

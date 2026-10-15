@@ -6,6 +6,7 @@
 #include <QFontDatabase>
 #include <QQuickImageProvider>
 #include <QImage>
+#include <QIcon>
 #include <QDebug>
 #ifdef HAVE_KF6_WINDOW_SYSTEM
 #include <KWindowSystem>
@@ -42,6 +43,22 @@ public:
             }
         }
         return img;
+    }
+};
+
+// image://appicon/<Icon= value from a .desktop file>: a theme icon name or an
+// absolute path. Unknown icons give an empty pixmap, so XAppIcon falls back
+// to its letter badge.
+class AppIconProvider : public QQuickImageProvider {
+public:
+    AppIconProvider() : QQuickImageProvider(QQuickImageProvider::Pixmap) {}
+
+    QPixmap requestPixmap(const QString &id, QSize *size, const QSize &requested) override {
+        const QIcon icon = id.startsWith('/') ? QIcon(id) : QIcon::fromTheme(id);
+        const QSize want = requested.isValid() ? requested : QSize(64, 64);
+        QPixmap pm = icon.isNull() ? QPixmap() : icon.pixmap(want);
+        if (size) *size = pm.size();
+        return pm;
     }
 };
 
@@ -82,6 +99,7 @@ int main(int argc, char** argv) {
 
     QQmlApplicationEngine engine;
     engine.addImageProvider("grain", new GrainProvider);   // must precede loadFromModule
+    engine.addImageProvider("appicon", new AppIconProvider);
     engine.loadFromModule("XType.Settings", "App");
     if (engine.rootObjects().isEmpty()) return -1;
 

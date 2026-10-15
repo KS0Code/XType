@@ -88,6 +88,14 @@ XTypeEngine::XTypeEngine(fcitx::AddonManager *manager)
 
     _phraseBlock.load(_cfg.behaviour.blocked_phrases);
     dbg("XTypeEngine loaded, model=%s", _cfg.inference.model.c_str());
+
+    {
+        auto dir = path_utils::expandTilde("~/.local/share/xtype");
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        _seenAppsPath = (dir / "active_apps.json").string();
+        _seenApps.load(_seenAppsPath);
+    }
     if (_debugVerbose)
         dbg("[debug] verbose mode ON — sentence content will be written to debug.log");
     if (_profileRefreshSec != kProfileRefreshSec)
@@ -181,6 +189,9 @@ void XTypeEngine::activate(const fcitx::InputMethodEntry &,
     _lastProg = prog;
     if (appChanged)
         applyPrompt();        // re-apply prompt addendum for the new app
+
+    if (_seenApps.touch(prog, std::time(nullptr)) && !_seenApps.save(_seenAppsPath))
+        dbg("[apps] could not write %s", _seenAppsPath.c_str());
 }
 
 void XTypeEngine::deactivate(const fcitx::InputMethodEntry &,

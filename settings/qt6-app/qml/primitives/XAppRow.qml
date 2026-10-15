@@ -6,6 +6,7 @@ Item {
     property string appLabel: ""
     property string appSub: ""
     property string iconCls: ""
+    property string iconName: ""
     property bool selected: false
     property bool comingSoon: false
     default property alias contentData: controlSlot.data
@@ -31,7 +32,12 @@ Item {
         anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
         spacing: 12
 
-        XAppIcon { cls: root.iconCls; anchors.verticalCenter: parent.verticalCenter }
+        XAppIcon {
+            cls: root.iconCls
+            iconName: root.iconName
+            fallbackLetter: root.appLabel
+            anchors.verticalCenter: parent.verticalCenter
+        }
 
         Column {
             anchors.verticalCenter: parent.verticalCenter

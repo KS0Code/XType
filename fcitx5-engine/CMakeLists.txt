@@ -22,6 +22,11 @@ add_library(path_utils_obj OBJECT src/path_utils.cpp)
 target_include_directories(path_utils_obj PUBLIC src)
 set_target_properties(path_utils_obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# seen_apps — apps typed in, for the settings app's Per-app page
+add_library(seen_apps_obj OBJECT src/seen_apps.cpp)
+target_include_directories(seen_apps_obj PUBLIC src)
+set_target_properties(seen_apps_obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 # corpus_collector compiled once; reused by the addon and the test binary
 add_library(corpus_collector_obj OBJECT src/corpus_collector.cpp)
 target_include_directories(corpus_collector_obj PUBLIC src)
@@ -49,6 +54,7 @@ target_include_directories(xtype-fcitx5 PRIVATE src)
 target_link_libraries(xtype-fcitx5 PRIVATE
     context_buffer_obj
     path_utils_obj
+    seen_apps_obj
     corpus_collector_obj
     style_profile_obj
     prompt_builder_obj

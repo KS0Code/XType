@@ -8,6 +8,13 @@ target_link_libraries(test_context_buffer PRIVATE
 
 catch_discover_tests(test_context_buffer)
 
+add_executable(test_seen_apps test_seen_apps.cpp)
+target_link_libraries(test_seen_apps PRIVATE
+    seen_apps_obj
+    Catch2::Catch2WithMain
+)
+catch_discover_tests(test_seen_apps)
+
 add_executable(test_corpus_collector test_corpus_collector.cpp)
 target_link_libraries(test_corpus_collector PRIVATE
     corpus_collector_obj

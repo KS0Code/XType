@@ -19,6 +19,11 @@ target_link_libraries(xtype-settings-tests PRIVATE
     Catch2::Catch2WithMain
 )
 
+target_sources(xtype-settings-tests PRIVATE
+    test_apps_known.cpp
+    ${CMAKE_SOURCE_DIR}/src/apps_known.cpp
+)
+
 include(CTest)
 include(Catch)
 catch_discover_tests(xtype-settings-tests)
