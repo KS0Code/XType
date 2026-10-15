@@ -471,12 +471,24 @@ void XTypeEngine::requestInference(
 
 // ── Preedit ───────────────────────────────────────────────────────────────────
 
+// Preedit flags for an inline suggestion. DontCommit keeps the app from
+// committing the ghost text itself (e.g. when focus moves away).
+static fcitx::TextFormatFlags inlineFlags(InlineFormat f) {
+    fcitx::TextFormatFlags flags{fcitx::TextFormatFlag::DontCommit};
+    switch (f) {
+        case InlineFormat::Underline: flags |= fcitx::TextFormatFlag::Underline; break;
+        case InlineFormat::Highlight: flags |= fcitx::TextFormatFlag::HighLight; break;
+        case InlineFormat::Bold:      flags |= fcitx::TextFormatFlag::Bold;      break;
+        case InlineFormat::Italic:    flags |= fcitx::TextFormatFlag::Italic;    break;
+        case InlineFormat::None:                                                 break;
+    }
+    return flags;
+}
+
 void XTypeEngine::updatePreedit(fcitx::InputContext *ic) {
     auto &panel = ic->inputPanel();
     if (_ctx.hasSuggestion()) {
-        fcitx::Text t(*_ctx.suggestion(),
-                      fcitx::TextFormatFlags{fcitx::TextFormatFlag::Underline,
-                                             fcitx::TextFormatFlag::DontCommit});
+        fcitx::Text t(*_ctx.suggestion(), inlineFlags(_cfg.ghost.inline_format));
         panel.setClientPreedit(t);
     } else {
         panel.setClientPreedit(fcitx::Text{});

@@ -94,6 +94,29 @@ Item {
                     }
                 }
                 XRow {
+                    label: "Inline look"
+                    desc: "Qt apps only; Firefox, Electron and most GTK apps always underline."
+                    width: parent.width
+                    Row {
+                        spacing: 6
+                        Repeater {
+                            model: [
+                                { label: "Underline", value: "underline" },
+                                { label: "Highlight", value: "highlight" },
+                                { label: "Bold",      value: "bold" },
+                                { label: "Italic",    value: "italic" },
+                                { label: "None",      value: "none" },
+                            ]
+                            delegate: XPill {
+                                required property var modelData
+                                label: modelData.label
+                                on: Config.ghostInlineFormat === modelData.value
+                                onClicked: Config.ghostInlineFormat = modelData.value
+                            }
+                        }
+                    }
+                }
+                XRow {
                     label: "Partial accept (word-by-word)"
                     desc: "Accept one word at a time"
                     width: parent.width

@@ -9,6 +9,7 @@ TEST_CASE("empty file returns all defaults") {
     CHECK(cfg.inference.temperature == Catch::Approx(0.3f).margin(0.001));
     CHECK(cfg.behaviour.engine_enabled == true);
     CHECK(cfg.behaviour.accept_full_key == AcceptKey::Tab);
+    CHECK(cfg.ghost.inline_format == InlineFormat::Underline);
     CHECK(cfg.learning.enabled == false);
     CHECK(cfg.user_prompt.description.empty());
     CHECK(cfg.apps.empty());
@@ -29,6 +30,7 @@ TEST_CASE("full config round-trips every field") {
     CHECK(cfg.behaviour.partial_accept == false);
     CHECK(cfg.behaviour.blocklist_apps == std::vector<std::string>{"kate", "subl"});
     CHECK(cfg.behaviour.blocked_phrases == std::vector<std::string>{"pursuant to", "hereinafter"});
+    CHECK(cfg.ghost.inline_format == InlineFormat::Italic);
     CHECK(cfg.learning.enabled == true);
     CHECK(cfg.learning.max_corpus_mb == 25);
     CHECK(cfg.learning.voice_strength == 80);

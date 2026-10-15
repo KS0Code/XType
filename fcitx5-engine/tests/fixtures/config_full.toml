@@ -20,6 +20,9 @@ passthrough_terminals = false
 blocklist_apps = ["kate", "subl"]
 blocked_phrases = ["pursuant to", "hereinafter"]
 
+[ghost]
+inline_format = "italic"
+
 [learning]
 enabled = true
 corpus_path = "~/.local/share/xtype/corpus2.txt"

@@ -104,6 +104,11 @@ void ConfigStore::load() {
         }
     }
 
+    // --- [ghost] ---
+    if (auto *g = root["ghost"].as_table()) {
+        if (auto v = (*g)["inline_format"].value<std::string>()) _ghostInlineFormat = QString::fromStdString(*v);
+    }
+
     // --- [learning] ---
     if (auto *lrn = root["learning"].as_table()) {
         if (auto v = (*lrn)["enabled"].value<bool>())                    _learningEnabled = *v;
@@ -189,6 +194,11 @@ void ConfigStore::writeToml(const QString &path) {
     writeStringArray(beh, "blocked_phrases", _blockedPhrases);
     root.insert_or_assign("behaviour", std::move(beh));
 
+    // [ghost]
+    toml::table ghost;
+    ghost.insert_or_assign("inline_format", _ghostInlineFormat.toStdString());
+    root.insert_or_assign("ghost", std::move(ghost));
+
     // [learning]
     toml::table lrn;
     lrn.insert_or_assign("enabled",                    _learningEnabled);
@@ -263,6 +273,7 @@ void ConfigStore::resetAll() {
     _engineEnabled        = true;
     _triggerMode          = "pause";
     _acceptKey            = "tab";
+    _ghostInlineFormat    = "underline";
     _partialAccept        = true;
     _escDismisses         = true;
     _passThroughTerminals = true;
@@ -306,6 +317,7 @@ void ConfigStore::resetAll() {
     emit engineEnabledChanged();
     emit triggerModeChanged();
     emit acceptKeyChanged();
+    emit ghostInlineFormatChanged();
     emit partialAcceptChanged();
     emit escDismissesChanged();
     emit passThroughTerminalsChanged();
@@ -349,6 +361,7 @@ void ConfigStore::setEscDismisses(bool v)               { CS_SET(escDismisses,  
 void ConfigStore::setPassThroughTerminals(bool v)       { CS_SET(passThroughTerminals,  passThroughTerminalsChanged); }
 void ConfigStore::setTriggerMode(const QString &v)      { CS_SET(triggerMode,           triggerModeChanged); }
 void ConfigStore::setAcceptKey(const QString &v)        { CS_SET(acceptKey,             acceptKeyChanged); }
+void ConfigStore::setGhostInlineFormat(const QString &v){ CS_SET(ghostInlineFormat,     ghostInlineFormatChanged); }
 void ConfigStore::setBlocklistApps(const QStringList &v){ CS_SET(blocklistApps,         blocklistAppsChanged); }
 void ConfigStore::setBlockedPhrases(const QStringList &v){ CS_SET(blockedPhrases,       blockedPhrasesChanged); }
 

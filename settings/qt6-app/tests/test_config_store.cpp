@@ -257,3 +257,20 @@ TEST_CASE("resetAll: backup file exists, main file reverts to defaults", "[confi
     CHECK(cs2.model()      == "qwen2.5:1.5b");
     CHECK(cs2.debounceMs() == 220);
 }
+
+TEST_CASE("[ghost] inline_format round-trip and default", "[config_store]") {
+    QTemporaryDir tmp; REQUIRE(tmp.isValid());
+    const QString dst = tmp.filePath("config.toml");
+
+    {
+        ConfigStore cs(dst);
+        cs.load();
+        CHECK(cs.ghostInlineFormat() == "underline");
+        cs.setGhostInlineFormat("italic");
+        cs.saveNow();
+    }
+
+    ConfigStore cs2(dst);
+    cs2.load();
+    CHECK(cs2.ghostInlineFormat() == "italic");
+}

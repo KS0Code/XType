@@ -8,7 +8,8 @@
 #include <QVariantMap>
 
 // TOML key names mirror XTypeConfig struct fields exactly (snake_case).
-// Enum strings: TriggerMode → "pause"|"manual"; AcceptKey → "tab"|"enter"|"right".
+// Enum strings: TriggerMode → "pause"|"manual"; AcceptKey → "tab"|"enter"|"right";
+// [ghost] inline_format → "underline"|"highlight"|"bold"|"italic"|"none".
 // std::optional round-trip: absent key ↔ invalid QVariant / empty optional.
 
 class ConfigStore : public QObject {
@@ -18,6 +19,7 @@ class ConfigStore : public QObject {
     Q_PROPERTY(bool        engineEnabled    READ engineEnabled    WRITE setEngineEnabled    NOTIFY engineEnabledChanged)
     Q_PROPERTY(QString     triggerMode      READ triggerMode      WRITE setTriggerMode      NOTIFY triggerModeChanged)
     Q_PROPERTY(QString     acceptKey        READ acceptKey        WRITE setAcceptKey        NOTIFY acceptKeyChanged)
+    Q_PROPERTY(QString     ghostInlineFormat READ ghostInlineFormat WRITE setGhostInlineFormat NOTIFY ghostInlineFormatChanged)
     Q_PROPERTY(bool        partialAccept    READ partialAccept    WRITE setPartialAccept    NOTIFY partialAcceptChanged)
     Q_PROPERTY(bool        escDismisses     READ escDismisses     WRITE setEscDismisses     NOTIFY escDismissesChanged)
     Q_PROPERTY(bool        passThroughTerminals READ passThroughTerminals WRITE setPassThroughTerminals NOTIFY passThroughTerminalsChanged)
@@ -67,6 +69,7 @@ public:
     bool        engineEnabled()          const { return _engineEnabled; }
     QString     triggerMode()            const { return _triggerMode; }
     QString     acceptKey()              const { return _acceptKey; }
+    QString     ghostInlineFormat()      const { return _ghostInlineFormat; }
     bool        partialAccept()          const { return _partialAccept; }
     bool        escDismisses()           const { return _escDismisses; }
     bool        passThroughTerminals()   const { return _passThroughTerminals; }
@@ -103,6 +106,7 @@ public:
     void setEngineEnabled(bool v);
     void setTriggerMode(const QString &v);
     void setAcceptKey(const QString &v);
+    void setGhostInlineFormat(const QString &v);
     void setPartialAccept(bool v);
     void setEscDismisses(bool v);
     void setPassThroughTerminals(bool v);
@@ -151,6 +155,7 @@ signals:
     void engineEnabledChanged();
     void triggerModeChanged();
     void acceptKeyChanged();
+    void ghostInlineFormatChanged();
     void partialAcceptChanged();
     void escDismissesChanged();
     void passThroughTerminalsChanged();
@@ -194,6 +199,7 @@ private:
     bool        _engineEnabled        = true;
     QString     _triggerMode          = "pause";
     QString     _acceptKey            = "tab";
+    QString     _ghostInlineFormat    = "underline";
     bool        _partialAccept        = true;
     bool        _escDismisses         = true;
     bool        _passThroughTerminals = true;

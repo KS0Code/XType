@@ -80,6 +80,17 @@ XTypeConfig config_loader::load(const std::string& path) {
         }
     }
 
+    // [ghost]
+    if (auto* t = tbl["ghost"].as_table()) {
+        if (auto v = (*t)["inline_format"].value<std::string>()) {
+            if      (*v == "highlight") cfg.ghost.inline_format = InlineFormat::Highlight;
+            else if (*v == "bold")      cfg.ghost.inline_format = InlineFormat::Bold;
+            else if (*v == "italic")    cfg.ghost.inline_format = InlineFormat::Italic;
+            else if (*v == "none")      cfg.ghost.inline_format = InlineFormat::None;
+            else                        cfg.ghost.inline_format = InlineFormat::Underline;
+        }
+    }
+
     // [learning]
     if (auto* t = tbl["learning"].as_table()) {
         if (auto v = (*t)["enabled"].value<bool>())                cfg.learning.enabled                    = *v;

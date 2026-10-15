@@ -7,6 +7,11 @@
 
 enum class TriggerMode { Pause, Manual };
 enum class AcceptKey   { Tab, Enter, Right };
+// How inline suggestions are marked in the app's text. Only apps that talk to
+// Fcitx5 through its Qt or GTK module apply it; native Wayland text-input-v3
+// clients (GTK without the module, Firefox, Electron) carry no styling and
+// draw their own underline whatever is chosen.
+enum class InlineFormat { Underline, Highlight, Bold, Italic, None };
 
 struct InferenceConfig {
     std::string              model             = "qwen2.5:1.5b";
@@ -61,9 +66,15 @@ struct AppOverride {
     std::optional<std::string> prompt_addendum;
 };
 
+// [ghost]: how suggestions are shown.
+struct GhostConfig {
+    InlineFormat inline_format = InlineFormat::Underline;
+};
+
 struct XTypeConfig {
     InferenceConfig                         inference;
     BehaviourConfig                         behaviour;
+    GhostConfig                             ghost;
     LearningConfig                          learning;
     UserPromptConfig                        user_prompt;
     std::map<std::string, AppOverride>      apps;
