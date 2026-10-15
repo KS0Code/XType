@@ -6,6 +6,11 @@
 #include <vector>
 
 enum class TriggerMode { Pause, Manual };
+// How the suggestion is shown. Inline: as preedit in the app's own text field
+// (the app styles it — usually underlined). Popup: drawn by Fcitx5's UI in a
+// popup at the caret, so a Fcitx5 theme controls its look (gray text).
+enum class GhostStyle { Inline, Popup };
+
 enum class AcceptKey   { Tab, Enter, Right };
 
 struct InferenceConfig {
@@ -59,11 +64,26 @@ struct AppOverride {
     std::optional<int>         num_predict;
     std::optional<std::string> mode;            // Default/Code-aware/Email tone/Casual/Off
     std::optional<std::string> prompt_addendum;
+    std::optional<GhostStyle>  ghost_style;     // overrides [ghost] style for this app
+};
+
+struct GhostConfig {
+    GhostStyle  style           = GhostStyle::Inline;
+    // Popup style only. While it is on, XType switches Fcitx5's classic UI to
+    // popup_theme / popup_font and restores the user's own settings after.
+    std::string popup_font      = "Sans 11";
+    std::string popup_theme     = "xtype-ghost";
+    // Popup style on Hyprland only: load the xtype-inline Hyprland plugin,
+    // which moves the popup from below the caret onto the caret's line. Only
+    // native Wayland text-input apps are affected (not X11, nor Qt apps using
+    // Fcitx5's Qt module), and Chromium-based apps report a stale caret.
+    bool        hyprland_inline = false;
 };
 
 struct XTypeConfig {
     InferenceConfig                         inference;
     BehaviourConfig                         behaviour;
+    GhostConfig                             ghost;
     LearningConfig                          learning;
     UserPromptConfig                        user_prompt;
     std::map<std::string, AppOverride>      apps;

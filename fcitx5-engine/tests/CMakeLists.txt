@@ -47,6 +47,13 @@ catch_discover_tests(test_config_loader
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
+add_executable(test_ghost_popup_state test_ghost_popup_state.cpp)
+target_include_directories(test_ghost_popup_state PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
+target_link_libraries(test_ghost_popup_state PRIVATE
+    Catch2::Catch2WithMain
+)
+catch_discover_tests(test_ghost_popup_state)
+
 add_executable(test_phrase_blocklist test_phrase_blocklist.cpp)
 target_include_directories(test_phrase_blocklist PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 target_link_libraries(test_phrase_blocklist PRIVATE

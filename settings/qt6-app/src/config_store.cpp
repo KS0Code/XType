@@ -104,6 +104,14 @@ void ConfigStore::load() {
         }
     }
 
+    // --- [ghost] ---
+    if (auto *g = root["ghost"].as_table()) {
+        if (auto v = (*g)["style"].value<std::string>())         _ghostStyle          = QString::fromStdString(*v);
+        if (auto v = (*g)["popup_font"].value<std::string>())    _ghostPopupFont      = QString::fromStdString(*v);
+        if (auto v = (*g)["popup_theme"].value<std::string>())   _ghostPopupTheme     = QString::fromStdString(*v);
+        if (auto v = (*g)["hyprland_inline"].value<bool>())      _ghostHyprlandInline = *v;
+    }
+
     // --- [learning] ---
     if (auto *lrn = root["learning"].as_table()) {
         if (auto v = (*lrn)["enabled"].value<bool>())                    _learningEnabled = *v;
@@ -136,6 +144,7 @@ void ConfigStore::load() {
             if (auto v = (*overTbl)["num_predict"].value<int64_t>())   entry["num_predict"] = static_cast<int>(*v);
             if (auto v = (*overTbl)["mode"].value<std::string>())       entry["mode"] = QString::fromStdString(*v);
             if (auto v = (*overTbl)["prompt_addendum"].value<std::string>()) entry["prompt_addendum"] = QString::fromStdString(*v);
+            if (auto v = (*overTbl)["ghost_style"].value<std::string>()) entry["ghost_style"] = QString::fromStdString(*v);
             _apps[QString::fromStdString(std::string(prog))] = entry;
         }
     }
@@ -189,6 +198,14 @@ void ConfigStore::writeToml(const QString &path) {
     writeStringArray(beh, "blocked_phrases", _blockedPhrases);
     root.insert_or_assign("behaviour", std::move(beh));
 
+    // [ghost]
+    toml::table ghost;
+    ghost.insert_or_assign("style",           _ghostStyle.toStdString());
+    ghost.insert_or_assign("popup_font",      _ghostPopupFont.toStdString());
+    ghost.insert_or_assign("popup_theme",     _ghostPopupTheme.toStdString());
+    ghost.insert_or_assign("hyprland_inline", _ghostHyprlandInline);
+    root.insert_or_assign("ghost", std::move(ghost));
+
     // [learning]
     toml::table lrn;
     lrn.insert_or_assign("enabled",                    _learningEnabled);
@@ -220,6 +237,7 @@ void ConfigStore::writeToml(const QString &path) {
             if (sub.contains("num_predict"))       entry.insert_or_assign("num_predict",       static_cast<int64_t>(sub["num_predict"].toInt()));
             if (sub.contains("mode"))              entry.insert_or_assign("mode",              sub["mode"].toString().toStdString());
             if (sub.contains("prompt_addendum"))   entry.insert_or_assign("prompt_addendum",   sub["prompt_addendum"].toString().toStdString());
+            if (sub.contains("ghost_style"))       entry.insert_or_assign("ghost_style",       sub["ghost_style"].toString().toStdString());
             appsTbl.insert_or_assign(it.key().toStdString(), std::move(entry));
         }
         root.insert_or_assign("apps", std::move(appsTbl));
@@ -263,6 +281,10 @@ void ConfigStore::resetAll() {
     _engineEnabled        = true;
     _triggerMode          = "pause";
     _acceptKey            = "tab";
+    _ghostStyle           = "inline";
+    _ghostPopupFont       = "Sans 11";
+    _ghostPopupTheme      = "xtype-ghost";
+    _ghostHyprlandInline  = false;
     _partialAccept        = true;
     _escDismisses         = true;
     _passThroughTerminals = true;
@@ -306,6 +328,10 @@ void ConfigStore::resetAll() {
     emit engineEnabledChanged();
     emit triggerModeChanged();
     emit acceptKeyChanged();
+    emit ghostStyleChanged();
+    emit ghostPopupFontChanged();
+    emit ghostPopupThemeChanged();
+    emit ghostHyprlandInlineChanged();
     emit partialAcceptChanged();
     emit escDismissesChanged();
     emit passThroughTerminalsChanged();
@@ -349,6 +375,10 @@ void ConfigStore::setEscDismisses(bool v)               { CS_SET(escDismisses,  
 void ConfigStore::setPassThroughTerminals(bool v)       { CS_SET(passThroughTerminals,  passThroughTerminalsChanged); }
 void ConfigStore::setTriggerMode(const QString &v)      { CS_SET(triggerMode,           triggerModeChanged); }
 void ConfigStore::setAcceptKey(const QString &v)        { CS_SET(acceptKey,             acceptKeyChanged); }
+void ConfigStore::setGhostStyle(const QString &v)       { CS_SET(ghostStyle,            ghostStyleChanged); }
+void ConfigStore::setGhostPopupFont(const QString &v)   { CS_SET(ghostPopupFont,        ghostPopupFontChanged); }
+void ConfigStore::setGhostPopupTheme(const QString &v)  { CS_SET(ghostPopupTheme,       ghostPopupThemeChanged); }
+void ConfigStore::setGhostHyprlandInline(bool v)        { CS_SET(ghostHyprlandInline,   ghostHyprlandInlineChanged); }
 void ConfigStore::setBlocklistApps(const QStringList &v){ CS_SET(blocklistApps,         blocklistAppsChanged); }
 void ConfigStore::setBlockedPhrases(const QStringList &v){ CS_SET(blockedPhrases,       blockedPhrasesChanged); }
 

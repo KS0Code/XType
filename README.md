@@ -225,6 +225,13 @@ partial_accept      = true
 esc_dismisses       = true
 blocklist_apps      = ["konsole", "alacritty", "keepassxc", "1password"]
 
+[ghost]
+style               = "inline" # "inline": in the app's text (the app draws it, usually underlined)
+                               # "popup":  gray text drawn by Fcitx5 at the caret
+popup_font          = "Sans 11"      # popup only: font of the gray text
+popup_theme         = "xtype-ghost"  # popup only: Fcitx5 theme used while popup is on
+hyprland_inline     = false    # popup + Hyprland only: show the popup on the caret line
+
 [learning]
 enabled             = false    # opt-in
 corpus_path         = "~/.local/share/xtype/corpus.txt"
@@ -250,6 +257,8 @@ mode                = "Default"
 | `min_context_chars`          | Minimum buffered characters before the engine asks for a suggestion.               |
 | `context_window`             | Sliding-window size (chars) handed to the model as prefill.                        |
 | `blocklist_apps`             | Case-insensitive component match against `ic->program()`.                          |
+| `ghost.style`                | `"inline"` keeps the app's own (underlined) preedit. `"popup"` shows gray ghost text through Fcitx5's popup; XType switches Fcitx5's classic UI to `popup_theme`/`popup_font` and restores your own theme when you switch back. |
+| `ghost.hyprland_inline`      | Hyprland only. Loads the bundled `xtype-inline` plugin, which moves the popup from below the caret onto the caret line. **Not every app benefits:** it only affects native Wayland apps using the text-input protocol, and only lines up where the app reports its caret correctly. X11/XWayland apps and Qt apps using Fcitx5's Qt module (`QT_IM_MODULE=fcitx`) draw their popup elsewhere, so it stays below the caret; Electron/Chromium apps (VS Code, Teams, Edge, …) report a stale caret, so the popup lags behind the text. Use the inline style for those apps. The plugin is built against the installed Hyprland headers — rebuild and reinstall XType after Hyprland updates. |
 | `learning.voice_strength`    | 0 = no corpus examples in prompt; 100 = all exemplars included; proportional.     |
 | `learning.forget_after_days` | Prune corpus entries older than N days. 0 disables pruning.                        |
 | `user_prompt.description`    | Free-text description of yourself injected into the system prompt (≤ 500 chars).   |

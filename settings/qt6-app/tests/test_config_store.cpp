@@ -167,6 +167,31 @@ TEST_CASE("apps: only present keys survive, absent optionals stay absent", "[con
     CHECK(!kate.contains("num_predict"));
     CHECK(!kate.contains("mode"));
     CHECK(!kate.contains("prompt_addendum"));
+    CHECK(!kate.contains("ghost_style"));
+}
+
+TEST_CASE("apps: per-app ghost_style round-trips and clears with null", "[config_store]") {
+    QTemporaryDir tmp; REQUIRE(tmp.isValid());
+    const QString dst = tmp.filePath("config.toml");
+
+    {
+        ConfigStore cs(dst);
+        cs.load();
+        cs.setApp("omawrite", "ghost_style", "popup");
+        cs.setApp("kate", "ghost_style", "inline");
+        cs.saveNow();
+    }
+    {
+        ConfigStore cs(dst);
+        cs.load();
+        CHECK(cs.apps()["omawrite"].toMap()["ghost_style"].toString() == "popup");
+        CHECK(cs.apps()["kate"].toMap()["ghost_style"].toString() == "inline");
+        cs.setApp("omawrite", "ghost_style", QVariant::fromValue(nullptr));   // QML's null
+        cs.saveNow();
+    }
+    ConfigStore cs(dst);
+    cs.load();
+    CHECK(!cs.apps()["omawrite"].toMap().contains("ghost_style"));
 }
 
 // ------------------------------------------------------------------ 5
@@ -256,4 +281,29 @@ TEST_CASE("resetAll: backup file exists, main file reverts to defaults", "[confi
     cs2.load();
     CHECK(cs2.model()      == "qwen2.5:1.5b");
     CHECK(cs2.debounceMs() == 220);
+}
+
+TEST_CASE("[ghost] round-trip and defaults", "[config_store]") {
+    QTemporaryDir tmp; REQUIRE(tmp.isValid());
+    const QString dst = tmp.filePath("config.toml");
+
+    {
+        ConfigStore cs(dst);
+        cs.load();
+        CHECK(cs.ghostStyle()          == "inline");
+        CHECK(cs.ghostPopupFont()      == "Sans 11");
+        CHECK(cs.ghostPopupTheme()     == "xtype-ghost");
+        CHECK(cs.ghostHyprlandInline() == false);
+        cs.setGhostStyle("popup");
+        cs.setGhostPopupFont("Inter 13");
+        cs.setGhostHyprlandInline(true);
+        cs.saveNow();
+    }
+
+    ConfigStore cs2(dst);
+    cs2.load();
+    CHECK(cs2.ghostStyle()          == "popup");
+    CHECK(cs2.ghostPopupFont()      == "Inter 13");
+    CHECK(cs2.ghostPopupTheme()     == "xtype-ghost");
+    CHECK(cs2.ghostHyprlandInline() == true);
 }

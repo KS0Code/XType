@@ -127,6 +127,14 @@ XTypeEngine::XTypeEngine(fcitx::AddonManager *manager)
     }
 
     _inference.update_config(_cfg.inference);
+
+    // Popup ghost style: switch Fcitx5's classic UI theme / Hyprland plugin.
+    // Deferred so classicui is not loaded from inside our own constructor.
+    _ghostSetup = std::make_unique<GhostPopupSetup>(
+        _instance, path_utils::expandTilde("~/.local/share/xtype").string());
+    _ghostSetup->setLogSink([](const std::string &m) { dbg("[ghost] %s", m.c_str()); });
+    _instance->eventDispatcher().schedule(
+        [this] { _ghostSetup->apply(config_loader::ghostSetupConfig(_cfg)); });
 }
 
 XTypeEngine::~XTypeEngine() {
@@ -163,6 +171,7 @@ void XTypeEngine::reloadConfig() {
 
     applyPrompt();
     _inference.update_config(_cfg.inference);
+    _ghostSetup->apply(config_loader::ghostSetupConfig(_cfg));
     dbg("[reload] done");
 }
 
@@ -473,7 +482,14 @@ void XTypeEngine::requestInference(
 
 void XTypeEngine::updatePreedit(fcitx::InputContext *ic) {
     auto &panel = ic->inputPanel();
-    if (_ctx.hasSuggestion()) {
+    const bool popup =
+        config_loader::ghostStyleFor(_cfg, currentAppOverride()) == GhostStyle::Popup;
+    // Popup style: Fcitx5's UI draws the suggestion at the caret (styled by the
+    // Fcitx5 theme), and nothing is placed in the app's own text.
+    panel.setAuxUp(popup && _ctx.hasSuggestion() ? fcitx::Text(*_ctx.suggestion())
+                                                 : fcitx::Text{});
+    ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+    if (_ctx.hasSuggestion() && !popup) {
         fcitx::Text t(*_ctx.suggestion(),
                       fcitx::TextFormatFlags{fcitx::TextFormatFlag::Underline,
                                              fcitx::TextFormatFlag::DontCommit});
@@ -485,6 +501,8 @@ void XTypeEngine::updatePreedit(fcitx::InputContext *ic) {
 }
 
 void XTypeEngine::clearPreedit(fcitx::InputContext *ic) {
+    ic->inputPanel().setAuxUp(fcitx::Text{});
+    ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
     ic->inputPanel().setClientPreedit(fcitx::Text{});
     ic->updatePreedit();
 }

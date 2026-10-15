@@ -44,6 +44,7 @@ set_target_properties(config_loader_obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(xtype-fcitx5 SHARED
     src/xtype.cpp
     src/inference_client.cpp
+    src/ghost_popup.cpp
 )
 target_include_directories(xtype-fcitx5 PRIVATE src)
 target_link_libraries(xtype-fcitx5 PRIVATE
@@ -67,6 +68,27 @@ install(TARGETS xtype-fcitx5
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/data/xtype.conf"
     DESTINATION "${FCITX_INSTALL_PKGDATADIR}/addon"
 )
+# Popup ghost style: gray-text Fcitx5 theme, selected by the engine while
+# ghost.style = "popup" (see src/ghost_popup.h).
+install(FILES data/themes/xtype-ghost/theme.conf
+    DESTINATION "${FCITX_INSTALL_PKGDATADIR}/themes/xtype-ghost"
+)
+
+# Optional Hyprland plugin for ghost.hyprland_inline. Built when the Hyprland
+# plugin headers are installed; must be rebuilt after every Hyprland update.
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(HYPRLAND_PLUGIN_DEPS QUIET IMPORTED_TARGET
+        hyprland pixman-1 libdrm libinput libudev wayland-server xkbcommon)
+endif()
+option(XTYPE_HYPRLAND_PLUGIN "Build the xtype-inline Hyprland plugin" ${HYPRLAND_PLUGIN_DEPS_FOUND})
+if(XTYPE_HYPRLAND_PLUGIN)
+    set(XTYPE_HYPRLAND_PLUGIN_DIR "${CMAKE_INSTALL_PREFIX}/lib/xtype")
+    add_subdirectory(hyprland-plugin)
+    target_compile_definitions(xtype-fcitx5 PRIVATE
+        XTYPE_HYPRLAND_PLUGIN_PATH="${XTYPE_HYPRLAND_PLUGIN_DIR}/xtype-inline.so")
+endif()
+
 install(FILES data/xtype-im.conf
     DESTINATION "${FCITX_INSTALL_PKGDATADIR}/inputmethod"
     RENAME xtype.conf

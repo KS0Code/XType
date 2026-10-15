@@ -1,0 +1,8 @@
+[ghost]
+style = "popup"
+popup_font = "Inter 12"
+popup_theme = "my-theme"
+hyprland_inline = true
+
+[apps.omawrite]
+ghost_style = "inline"

@@ -143,6 +143,38 @@ Item {
                             }
                         }
 
+                        // Suggestion style: overrides General → Suggestion style for this app
+                        XRow {
+                            label: "Suggestion style"
+                            desc: "Default follows the General page."
+                            width: parent.width
+                            isLast: false
+                            Row {
+                                spacing: 6
+                                Repeater {
+                                    model: [
+                                        { label: "Default", value: "" },
+                                        { label: "Inline",  value: "inline" },
+                                        { label: "Popup",   value: "popup" },
+                                    ]
+                                    delegate: XPill {
+                                        required property var modelData
+                                        label: modelData.label
+                                        on: {
+                                            if (root.selectedId === "") return modelData.value === ""
+                                            const entry = Config.apps[AppsKnown.canonicalForId(root.selectedId)]
+                                            return ((entry && entry.ghost_style) || "") === modelData.value
+                                        }
+                                        onClicked: {
+                                            if (root.selectedId === "") return
+                                            Config.setApp(AppsKnown.canonicalForId(root.selectedId), "ghost_style",
+                                                          modelData.value === "" ? null : modelData.value)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // Suggestion length (comingSoon)
                         XRow {
                             label: "Suggestion length"

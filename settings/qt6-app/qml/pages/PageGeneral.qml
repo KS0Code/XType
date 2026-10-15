@@ -3,7 +3,12 @@ import QtQuick.Controls.Basic
 import XType.Settings 1.0
 
 Item {
+    id: page
     anchors.fill: parent
+
+    // Popup options matter when the default style or any app's override is popup.
+    readonly property bool popupInUse: Config.ghostStyle === "popup"
+        || Object.values(Config.apps).some(a => a && a.ghost_style === "popup")
 
     Flickable {
         id: flick
@@ -91,6 +96,46 @@ Item {
                             on: Config.acceptKey === "right"
                             onClicked: Config.acceptKey = "right"
                         }
+                    }
+                }
+                XRow {
+                    label: "Suggestion style"
+                    desc: "Inline: in the app's own text (usually underlined). Popup: gray text drawn by Fcitx5 at the caret."
+                    width: parent.width
+                    Row {
+                        spacing: 6
+                        XPill {
+                            label: "Inline"
+                            on: Config.ghostStyle !== "popup"
+                            onClicked: Config.ghostStyle = "inline"
+                        }
+                        XPill {
+                            label: "Popup"
+                            on: Config.ghostStyle === "popup"
+                            onClicked: Config.ghostStyle = "popup"
+                        }
+                    }
+                }
+                XRow {
+                    visible: page.popupInUse
+                    label: "Popup font"
+                    desc: "Font of the gray text, e.g. \"Sans 11\". Match your apps' text size."
+                    width: parent.width
+                    XInput {
+                        width: 200
+                        placeholderText: "Sans 11"
+                        text: Config.ghostPopupFont
+                        onEditingFinished: Config.ghostPopupFont = text.trim().length > 0 ? text.trim() : "Sans 11"
+                    }
+                }
+                XRow {
+                    visible: page.popupInUse
+                    label: "On the caret line (Hyprland)"
+                    desc: "Moves the popup onto the line you type. Not every app: only native Wayland apps that report their caret; not X11, Electron/Chromium or Qt apps using Fcitx5's Qt module."
+                    width: parent.width
+                    XToggle {
+                        on: Config.ghostHyprlandInline
+                        onToggled: (v) => Config.ghostHyprlandInline = v
                     }
                 }
                 XRow {

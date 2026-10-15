@@ -20,6 +20,7 @@
 #include "context_buffer.h"
 #include "corpus_collector.h"
 #include "engine_metrics.h"
+#include "ghost_popup.h"
 #include "inference_client.h"
 #include "phrase_blocklist.h"
 #include "recent_events.h"
@@ -71,6 +72,7 @@ private:
     RecentEventsRing                         _recent;
     PhraseBlocklist                          _phraseBlock;
     std::unique_ptr<CorpusCollector>         _corpus;
+    std::unique_ptr<GhostPopupSetup>         _ghostSetup;
     std::string                              _userTypedSinceLastTerminator;
     std::unique_ptr<fcitx::EventSourceTime>  _debounceTimer;
     uint64_t                                 _gen{0};

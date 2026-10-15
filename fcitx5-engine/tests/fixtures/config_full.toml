@@ -36,6 +36,7 @@ tone = "technical"
 avoid_phrases = ["synergy", "leverage"]
 
 [apps.kate]
+ghost_style = "popup"
 enabled = false
 mode = "code-aware"
 num_predict = 20
