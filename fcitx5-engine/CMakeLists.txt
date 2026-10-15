@@ -41,6 +41,11 @@ add_library(config_loader_obj OBJECT src/config_loader.cpp)
 target_include_directories(config_loader_obj PUBLIC src)
 set_target_properties(config_loader_obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# ollama_request — pure request-body builder, consumed by the addon and tests
+add_library(ollama_request_obj OBJECT src/ollama_request.cpp)
+target_include_directories(ollama_request_obj PUBLIC src)
+set_target_properties(ollama_request_obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 add_library(xtype-fcitx5 SHARED
     src/xtype.cpp
     src/inference_client.cpp
@@ -53,6 +58,7 @@ target_link_libraries(xtype-fcitx5 PRIVATE
     style_profile_obj
     prompt_builder_obj
     config_loader_obj
+    ollama_request_obj
     Fcitx5::Core
     CURL::libcurl
 )

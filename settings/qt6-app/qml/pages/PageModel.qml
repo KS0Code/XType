@@ -105,10 +105,10 @@ Item {
 
                 XRow {
                     label: "Context window"
-                    desc: "Tokens of context fed to the model"
+                    desc: "Characters of text before the caret fed to the model"
                     width: parent.width
                     XSlider {
-                        min: 512; max: 4096; step: 256
+                        min: 100; max: 4000; step: 100
                         value: Config.contextWindow
                         onCommitted: (v) => Config.contextWindow = v
                         width: 200

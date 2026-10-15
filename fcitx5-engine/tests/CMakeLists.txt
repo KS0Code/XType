@@ -59,3 +59,17 @@ target_link_libraries(test_xtype_helpers PRIVATE
     Catch2::Catch2WithMain
 )
 catch_discover_tests(test_xtype_helpers)
+
+add_executable(test_caret_context test_caret_context.cpp)
+target_include_directories(test_caret_context PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
+target_link_libraries(test_caret_context PRIVATE
+    Catch2::Catch2WithMain
+)
+catch_discover_tests(test_caret_context)
+
+add_executable(test_ollama_request test_ollama_request.cpp)
+target_link_libraries(test_ollama_request PRIVATE
+    ollama_request_obj
+    Catch2::Catch2WithMain
+)
+catch_discover_tests(test_ollama_request)

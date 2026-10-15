@@ -21,8 +21,10 @@
 #include <fcitx/inputcontext.h>
 #include <fcitx/inputpanel.h>
 #include <fcitx/instance.h>
+#include <fcitx/surroundingtext.h>
 #include <fcitx/text.h>
 
+#include "caret_context.h"
 #include "config_loader.h"
 #include "path_utils.h"
 #include "prompt_builder.h"
@@ -375,7 +377,25 @@ void XTypeEngine::requestInference(
     fcitx::TrackableObjectReference<fcitx::InputContext> icRef,
     fcitx::InputContext *icPtr)
 {
+    if (!icRef.isValid()) return;
+
+    // Prefer the app's own text before the caret: unlike the keystroke buffer
+    // it includes text that was there before focus, pastes, and caret moves.
+    // Fall back to the buffer when the app doesn't report surrounding text or
+    // its copy doesn't have the last keystroke yet.
     auto ctx = _ctx.contextText();
+    const char *source = "typed";
+    if (icPtr->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) &&
+        icPtr->surroundingText().isValid()) {
+        const auto &st = icPtr->surroundingText();
+        if (auto before = caret_context::beforeCaret(st.text(), st.cursor(),
+                                                     caret_context::lastChar(ctx))) {
+            ctx    = std::move(*before);
+            source = "surrounding";
+        } else {
+            source = "typed (surrounding stale)";
+        }
+    }
     if (static_cast<int>(ctx.size()) < _cfg.inference.min_context_chars)
         return;
     if (static_cast<int>(ctx.size()) > _cfg.inference.context_window)
@@ -386,34 +406,40 @@ void XTypeEngine::requestInference(
     ++_metrics.suggestions_generated;
     const uint64_t myGen = _gen;
     const auto     startUs = fcitx::now(CLOCK_MONOTONIC);
+    const std::string sentCtx = ctx;  // the text being continued; used to tidy the output
+    std::string prompt = caret_context::promptFor(ctx);
 
     InferenceConfig reqCfg = _cfg.inference;
     if (auto* ov = currentAppOverride(); ov && ov->num_predict.has_value())
         reqCfg.num_predict = *ov->num_predict;
 
-    dbg("requestInference ctx='%.40s...'", ctx.c_str());
+    dbg("requestInference src=%s len=%zu ctx='%.40s...'", source, ctx.size(), ctx.c_str());
+    // Raw model output so far; only touched on the main thread.
+    auto raw = std::make_shared<std::string>();
     _inference.request(
-        std::move(ctx),
+        prompt,
         std::move(reqCfg),
-        [this, myGen, icRef, icPtr](std::string token) {
+        [this, myGen, icRef, icPtr, sentCtx, prompt, raw](std::string token) {
             dbg("token received: '%s' icValid=%d", token.c_str(), (int)icRef.isValid());
             if (!icRef.isValid()) { dbg("on_token: icRef invalid — dropping"); return; }
             _instance->eventDispatcher().scheduleWithContext(
                 icRef,
-                [this, myGen, tok = std::move(token), icPtr]() {
+                [this, myGen, tok = std::move(token), icPtr, sentCtx, prompt, raw]() {
                     if (myGen != _gen) return;
-                    std::string current =
-                        _ctx.hasSuggestion() ? *_ctx.suggestion() : "";
-                    _ctx.setSuggestion(current + tok);
-                    dbg("preedit updated: '%s'", _ctx.suggestion()->c_str());
+                    *raw += tok;
+                    std::string s = caret_context::withoutPromptEcho(*raw, prompt);
+                    caret_context::trimLeadingBlanksAfter(s, sentCtx);
+                    _ctx.setSuggestion(std::move(s));
+                    if (_ctx.hasSuggestion())
+                        dbg("preedit updated: '%s'", _ctx.suggestion()->c_str());
                     updatePreedit(icPtr);
                 });
         },
-        [this, myGen, icRef, icPtr, startUs]() {
+        [this, myGen, icRef, icPtr, startUs, sentCtx]() {
             dbg("inference done, myGen=%llu curGen=%llu", (unsigned long long)myGen, (unsigned long long)_gen);
             _instance->eventDispatcher().scheduleWithContext(
                 icRef,
-                [this, myGen, icPtr, startUs]() {
+                [this, myGen, icPtr, startUs, sentCtx]() {
                     if (myGen != _gen) return;
                     if (_ctx.hasSuggestion()) {
                         std::string s = *_ctx.suggestion();
@@ -421,7 +447,7 @@ void XTypeEngine::requestInference(
                         while (!s.empty() &&
                                std::isspace(static_cast<unsigned char>(s.back())))
                             s.pop_back();
-                        const std::string ctxText = _ctx.contextText();
+                        const std::string &ctxText = sentCtx;
                         // Strip tail-of-context echo: model repeats recently typed text.
                         constexpr size_t kMaxCheck = 80;
                         size_t check = std::min({s.size(), ctxText.size(), kMaxCheck});
@@ -445,6 +471,7 @@ void XTypeEngine::requestInference(
                             if (lower(s.substr(0, kHeadCheck)) == lower(ctxText.substr(0, kHeadCheck)))
                                 s.clear();
                         }
+                        caret_context::trimLeadingBlanksAfter(s, ctxText);
                         _ctx.setSuggestion(std::move(s));
                     }
                     updatePreedit(icPtr);

@@ -2,13 +2,14 @@
 
 #include <curl/curl.h>
 #include <algorithm>
-#include <charconv>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <string_view>
 #include <system_error>
+
+#include "ollama_request.h"
 
 static FILE *ic_logfile() {
     static FILE *f = []() -> FILE* {
@@ -34,22 +35,6 @@ static constexpr char kBaseSystemPrompt[] =
     "no punctuation at the start.";
 
 // ── JSON helpers ──────────────────────────────────────────────────────────────
-
-static std::string json_escape(std::string_view s) {
-    std::string out;
-    out.reserve(s.size());
-    for (char c : s) {
-        switch (c) {
-            case '"':  out += "\\\""; break;
-            case '\\': out += "\\\\"; break;
-            case '\n': out += "\\n";  break;
-            case '\r': out += "\\r";  break;
-            case '\t': out += "\\t";  break;
-            default:   out += c;
-        }
-    }
-    return out;
-}
 
 // Extract a JSON string value for `key` from a flat JSON object.
 // Returns empty string if not found.
@@ -79,56 +64,6 @@ static std::string json_str(std::string_view json, std::string_view key) {
         }
     }
     return result;
-}
-
-// ── Payload builder ───────────────────────────────────────────────────────────
-
-static std::string build_payload(const InferenceConfig& cfg,
-                                 const std::string& context,
-                                 const std::string& system_prompt) {
-    std::string stop_arr = "[";
-    for (size_t i = 0; i < cfg.stop_tokens.size(); ++i) {
-        if (i) stop_arr += ',';
-        stop_arr += '"';
-        stop_arr += json_escape(cfg.stop_tokens[i]);
-        stop_arr += '"';
-    }
-    stop_arr += ']';
-
-    // std::to_chars is locale-independent — snprintf respects LC_NUMERIC and would
-    // emit "0,3" instead of "0.3" under European locales, breaking Ollama's JSON parser.
-    char temp_buf[32] = {}, top_p_buf[32] = {};
-    {
-        auto r = std::to_chars(temp_buf, temp_buf + sizeof(temp_buf) - 1,
-                               static_cast<double>(cfg.temperature),
-                               std::chars_format::general, 6);
-        *r.ptr = '\0';
-    }
-    {
-        auto r = std::to_chars(top_p_buf, top_p_buf + sizeof(top_p_buf) - 1,
-                               static_cast<double>(cfg.top_p),
-                               std::chars_format::general, 6);
-        *r.ptr = '\0';
-    }
-
-    // Assistant-prefill: context is placed in an incomplete assistant turn.
-    // The model continues its own text, bypassing the chat-response pattern that
-    // fires when conversational text appears in the user role.
-    std::string payload = std::string(R"({"model":")") + json_escape(cfg.model)
-         + R"(","messages":[)"
-         + R"({"role":"system","content":")"    + json_escape(system_prompt) + R"("},)"
-         + R"({"role":"assistant","content":")" + json_escape(context) + R"("})"
-         + R"(],"stream":true,"options":{"num_predict":)"
-         + std::to_string(cfg.num_predict)
-         + R"(,"temperature":)" + temp_buf
-         + R"(,"top_p":)"      + top_p_buf
-         + R"(,"stop":)"       + stop_arr;
-
-    if (cfg.threads.has_value())
-        payload += R"(,"num_thread":)" + std::to_string(*cfg.threads);
-
-    payload += "}}";
-    return payload;
 }
 
 // ── CURL write callbacks ──────────────────────────────────────────────────────
@@ -289,7 +224,7 @@ void InferenceClient::execute(Req& req) {
         prompt_snapshot = _system_prompt;  // frozen for this request
     }
 
-    std::string payload = build_payload(req.cfg, req.context, prompt_snapshot);
+    std::string payload = buildChatPayload(req.cfg, req.context, prompt_snapshot);
     std::string url     = req.cfg.ollama_host + "/api/chat";
 
     WriteState ws(req.gen, _gen, req.on_token);
