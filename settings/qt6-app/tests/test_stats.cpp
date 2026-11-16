@@ -1,6 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
 
 #include <QDateTime>
+#include <algorithm>
 #include <QFile>
 #include <QTemporaryDir>
 
@@ -142,4 +144,75 @@ TEST_CASE("parseMetrics: empty or truncated file is rejected", "[engine_probe]")
 TEST_CASE("time-saved estimate assumes 40 WPM", "[engine_probe]") {
     // 200 accepted chars at 40 WPM x 5 chars/word = one minute of typing.
     CHECK(200.0 / EngineProbe::kCharsPerSecond == 60.0);
+}
+
+// ── EngineProbe::engineProcessTree ───────────────────────────────────────────
+
+TEST_CASE("engineProcessTree: includes the model runner child of ollama", "[engine_probe]") {
+    // Real layout: `ollama serve` (idle) spawns `llama-server`, which holds the model.
+    const QList<EngineProbe::ProcInfo> procs = {
+        { 1,    0,    "systemd" },
+        { 1399, 1,    "ollama" },
+        { 7073, 1399, "llama-server" },
+        { 7074, 7073, "llama-helper" },
+        { 500,  1,    "llama-server" },   // unrelated, not under ollama
+        { 600,  1,    "bash" },
+    };
+    QList<int> pids = EngineProbe::engineProcessTree(procs);
+    std::sort(pids.begin(), pids.end());
+    CHECK(pids == QList<int>{ 1399, 7073, 7074 });
+}
+
+TEST_CASE("engineProcessTree: nested ollama runner is counted once", "[engine_probe]") {
+    const QList<EngineProbe::ProcInfo> procs = {
+        { 10, 1,  "ollama" },   // ollama serve
+        { 11, 10, "ollama" },   // ollama runner
+    };
+    CHECK(EngineProbe::engineProcessTree(procs).size() == 2);
+}
+
+TEST_CASE("engineProcessTree: empty when ollama is not running", "[engine_probe]") {
+    CHECK(EngineProbe::engineProcessTree({ { 1, 0, "systemd" } }).isEmpty());
+}
+
+TEST_CASE("EngineProbe reads a non-zero RSS from procfs", "[engine_probe]") {
+    // Demo mode samples this test process. Regression: looping on
+    // QFile::atEnd() over /proc/<pid>/status read nothing (procfs size is 0).
+    qputenv("XTYPE_DEMO_METRICS", "1");
+    EngineProbe probe;   // ctor polls immediately
+    qunsetenv("XTYPE_DEMO_METRICS");
+    CHECK(probe.ramGb() > 0.0);
+}
+
+// ── EngineProbe::summarizeGpu ────────────────────────────────────────────────
+
+TEST_CASE("summarizeGpu: counts only the engine's VRAM and its GPU's load", "[engine_probe]") {
+    // Verbatim nvidia-smi output shape (csv,noheader,nounits).
+    const QByteArray gpus =
+        "GPU-aaa, 25, 6144\n"
+        "GPU-bbb, 90, 8192\n";
+    const QByteArray apps =
+        "GPU-aaa, 17487, 3122\n"     // llama-server (engine)
+        "GPU-bbb, 900, 4096\n";      // some game on the other GPU
+    const auto g = EngineProbe::summarizeGpu(gpus, apps, { 1399, 17487 });
+    REQUIRE(g.valid);
+    CHECK(g.pct == 25);
+    CHECK(g.vramGb == Catch::Approx(3122.0 / 1024.0));
+    CHECK(g.vramTotalGb == Catch::Approx(6.0));
+}
+
+TEST_CASE("summarizeGpu: model not on the GPU reports zero load", "[engine_probe]") {
+    const auto g = EngineProbe::summarizeGpu("GPU-aaa, 40, 6144\n", "", { 1399 });
+    REQUIRE(g.valid);
+    CHECK(g.pct == 0);
+    CHECK(g.vramGb == 0.0);
+    CHECK(g.vramTotalGb == Catch::Approx(6.0));   // bar still has a scale
+}
+
+TEST_CASE("summarizeGpu: tolerates [N/A] fields and empty output", "[engine_probe]") {
+    const auto g = EngineProbe::summarizeGpu("GPU-aaa, [N/A], 6144\n", "GPU-aaa, 17487, [N/A]\n", { 17487 });
+    REQUIRE(g.valid);
+    CHECK(g.pct == 0);
+    CHECK(g.vramGb == 0.0);
+    CHECK_FALSE(EngineProbe::summarizeGpu("", "", { 1 }).valid);
 }

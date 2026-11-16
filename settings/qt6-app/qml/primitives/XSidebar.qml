@@ -139,58 +139,28 @@ Item {
             }
         }
 
-        // CPU row
-        Row {
-            width: parent.width
-            spacing: 8
-            Text {
-                text: "CPU"
-                font.family: Theme.sansFamily; font.pixelSize: 10
-                font.capitalization: Font.AllUppercase
-                color: Theme.ink45; font.weight: Font.DemiBold
-                renderType: Text.NativeRendering
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            XMiniBar {
-                value: Engine.cpuPct / 100.0
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - cpuLabel.implicitWidth - 38
-            }
-            Text {
-                id: cpuLabel
-                text: Engine.cpuPct + "%"
-                font.family: Theme.monoFamily; font.pixelSize: 11
-                color: Theme.ink80
-                renderType: Text.NativeRendering
-                anchors.verticalCenter: parent.verticalCenter
-            }
+        // Resource rows. GPU/VRAM only appear on machines with an NVIDIA GPU.
+        StatRow {
+            caption: "CPU"
+            fraction: Engine.cpuPct / 100.0
+            valueText: Engine.cpuPct + "%"
         }
-
-        // RAM row
-        Row {
-            width: parent.width
-            spacing: 8
-            Text {
-                text: "RAM"
-                font.family: Theme.sansFamily; font.pixelSize: 10
-                font.capitalization: Font.AllUppercase
-                color: Theme.ink45; font.weight: Font.DemiBold
-                renderType: Text.NativeRendering
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            XMiniBar {
-                value: Math.min(1.0, Engine.ramGb / 4.0)
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - ramLabel.implicitWidth - 38
-            }
-            Text {
-                id: ramLabel
-                text: Engine.ramGb.toFixed(1) + " GB"
-                font.family: Theme.monoFamily; font.pixelSize: 11
-                color: Theme.ink80
-                renderType: Text.NativeRendering
-                anchors.verticalCenter: parent.verticalCenter
-            }
+        StatRow {
+            caption: "RAM"
+            fraction: Math.min(1.0, Engine.ramGb / 4.0)
+            valueText: Engine.ramGb.toFixed(1) + " GB"
+        }
+        StatRow {
+            visible: Engine.gpuAvailable
+            caption: "GPU"
+            fraction: Engine.gpuPct / 100.0
+            valueText: Engine.gpuPct + "%"
+        }
+        StatRow {
+            visible: Engine.gpuAvailable
+            caption: "VRAM"
+            fraction: Engine.vramTotalGb > 0 ? Math.min(1.0, Engine.vramGb / Engine.vramTotalGb) : 0
+            valueText: Engine.vramGb.toFixed(1) + " GB"
         }
 
         // Engine line
@@ -207,7 +177,43 @@ Item {
         }
     }
 
-    // ── Inline component ───────────────────────────────────────────────────
+    // ── Inline components ──────────────────────────────────────────────────
+    // Caption and value columns have fixed widths so the bars line up.
+    TextMetrics { id: captionMetrics; font.family: Theme.sansFamily; font.pixelSize: 10; font.weight: Font.DemiBold; text: "VRAM" }
+    TextMetrics { id: valueMetrics;   font.family: Theme.monoFamily; font.pixelSize: 11; text: "00.0 GB" }
+
+    component StatRow: Row {
+        id: statRow
+        property string caption: ""
+        property real   fraction: 0.0   // 0.0 – 1.0
+        property string valueText: ""
+        width: parent ? parent.width : 0
+        spacing: 8
+        Text {
+            width: captionMetrics.advanceWidth
+            text: statRow.caption
+            font.family: Theme.sansFamily; font.pixelSize: 10
+            font.capitalization: Font.AllUppercase
+            color: Theme.ink45; font.weight: Font.DemiBold
+            renderType: Text.NativeRendering
+            anchors.verticalCenter: parent.verticalCenter
+        }
+        XMiniBar {
+            value: statRow.fraction
+            anchors.verticalCenter: parent.verticalCenter
+            width: statRow.width - captionMetrics.advanceWidth - valueMetrics.advanceWidth - 2 * statRow.spacing
+        }
+        Text {
+            width: valueMetrics.advanceWidth
+            horizontalAlignment: Text.AlignRight
+            text: statRow.valueText
+            font.family: Theme.monoFamily; font.pixelSize: 11
+            color: Theme.ink80
+            renderType: Text.NativeRendering
+            anchors.verticalCenter: parent.verticalCenter
+        }
+    }
+
     component NavItem: Item {
         id: navRoot
         property string navId: ""
