@@ -2,7 +2,10 @@ find_package(Catch2 3 REQUIRED)
 
 add_executable(xtype-settings-tests
     test_config_store.cpp
+    test_stats.cpp
     ${CMAKE_SOURCE_DIR}/src/config_store.cpp
+    ${CMAKE_SOURCE_DIR}/src/corpus_stats.cpp
+    ${CMAKE_SOURCE_DIR}/src/engine_probe.cpp
 )
 
 target_include_directories(xtype-settings-tests PRIVATE

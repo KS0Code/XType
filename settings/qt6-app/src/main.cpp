@@ -70,6 +70,9 @@ int main(int argc, char** argv) {
     static AppsKnown         appsKnown;
 
     configStore.load();
+    corpusStats.setCorpusPath(configStore.corpusPath());
+    QObject::connect(&configStore, &ConfigStore::corpusPathChanged, &corpusStats,
+                     [] { corpusStats.setCorpusPath(configStore.corpusPath()); });
     qmlRegisterSingletonInstance<ConfigStore>      ("XType.Settings", 1, 0, "Config",        &configStore);
     qmlRegisterSingletonInstance<EngineProbe>      ("XType.Settings", 1, 0, "Engine",        &engineProbe);
     qmlRegisterSingletonInstance<Reloader>         ("XType.Settings", 1, 0, "Reloader",      &reloader);

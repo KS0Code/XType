@@ -60,14 +60,18 @@ Item {
                         spacing: 12
 
                         Repeater {
+                            id: statTiles
                             model: [
                                 { label: "Latency", value: Engine.latencyP50 + " ms" },
                                 { label: "RAM",     value: Engine.ramGb.toFixed(1) + " GB" },
                                 { label: "CPU",     value: Engine.cpuPct + "%" },
-                            ]
+                            ].concat(Engine.gpuAvailable ? [
+                                { label: "VRAM",    value: Engine.vramGb.toFixed(1) + " GB" },
+                                { label: "GPU",     value: Engine.gpuPct + "%" },
+                            ] : [])
                             delegate: Rectangle {
                                 required property var modelData
-                                width: (parent.width - 24) / 3; height: 52
+                                width: (parent.width - 12 * (statTiles.count - 1)) / statTiles.count; height: 52
                                 radius: 7
                                 color: Theme.ink03; border.width: 1; border.color: Theme.ink06
 
